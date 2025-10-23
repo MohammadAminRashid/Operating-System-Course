@@ -1,6 +1,13 @@
 #ifndef SYSTEM_HPP
 #define SYSTEM_HPP
 
+
+#define REGISTER "REGISTER"
+#define STDIN 0
+#define STDOUT 1
+
+
+
 #include <string>
 #include <vector>
 
@@ -13,22 +20,20 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
-#define STDIN 0
-#define STDOUT 1
+
 using namespace std; 
 
-enum class Role {CUSTOMER,AIRLINE };
-enum class Status {TEMPORARY, CONFIRMED };
+
 
 struct User {
-    int fd;
-    Role role;
-    string username;
-    string password;
+    int fd=0;
+    string role="";
+    string username="";
+    string password="";
 };
 struct seat{
 
-Status status;
+string status;
 char column;
 int row;
 };
@@ -53,6 +58,7 @@ public:
   void set_up_udp_airline();
   void set_up_tcp();
   void run();
+  void handle_command(string s , int fd);
  
 
 private:
