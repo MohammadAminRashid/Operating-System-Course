@@ -6,7 +6,7 @@
 #define STDIN 0
 #define STDOUT 1
 
-
+#include <iostream>
 
 #include <string>
 #include <vector>
@@ -31,7 +31,7 @@ struct User {
     string username="";
     string password="";
 };
-struct seat{
+struct Seat{
 
 string status;
 char column;
@@ -39,11 +39,12 @@ int row;
 };
 
 struct Flight{
-int flight_id;
+string flight_id;
 string origin;
 string destination;
 string time;
-vector<seat> seat_map;
+int capacity;
+vector<Seat> seat_map;
 
 };
 
@@ -59,9 +60,16 @@ public:
   void set_up_tcp();
   void run();
   void handle_command(string s , int fd);
- 
+  
 
 private:
+
+
+bool  verify_role(int fd , string role);
+
+
+
+
 int port;
 int server_fd;
 int socket_customer;
