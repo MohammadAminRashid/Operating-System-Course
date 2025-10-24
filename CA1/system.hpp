@@ -47,6 +47,16 @@ int capacity;
 vector<Seat> seat_map;
 
 };
+struct Reserve
+{
+  string reservation_id;
+  string flight_id;
+  string username;
+  vector<string> seats;
+  string status;
+  int time_stamp;
+};
+
 
 
 class AirLineManagerSystem 
@@ -66,7 +76,7 @@ private:
 
 
 bool  verify_role(int fd , string role);
-
+string get_username(int fd);
 
 
 
@@ -74,8 +84,10 @@ int port;
 int server_fd;
 int socket_customer;
 int socket_airline;
+int last_reserve;
 vector<User> users;
 vector<Flight>flights;
+vector<Reserve> reserves;
 
 
 };

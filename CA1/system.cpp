@@ -3,11 +3,40 @@ void print(string m)
 {
     write(STDOUT, m.c_str(), m.size());
 }
-string trim(const string& s) {
+
+bool isNumber(const string &s)
+{
+    if (s.empty())
+        return false;
+    for (char c : s)
+    {
+        if (!isdigit(c))
+            return false;
+    }
+    return true;
+}
+
+string trim(const string &s)
+{
     size_t start = s.find_first_not_of(" \t\r\n");
-    if (start == string::npos) return ""; 
+    if (start == string::npos)
+        return "";
     size_t end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
+}
+string AirLineManagerSystem ::get_username(int fd)
+{
+
+    for (auto u : users)
+    {
+
+        if (fd == u.fd)
+        {
+
+            return u.username;
+        }
+    }
+    return "";
 }
 
 bool AirLineManagerSystem ::verify_role(int fd, string role)
@@ -70,8 +99,7 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
 
     if (command_words[0] == REGISTER)
     {
-        Flight new_flight;
-        new_flight.flight_id = "fuck os";
+
         if (command_words.size() == 4)
         {
             bool is_already_exist = false;
@@ -178,7 +206,7 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
             }
         }
     }
-    else if (command_words[0] == "LIST_FLIGHT" and (verify_role(fd,"AIRLINE") or  verify_role(fd,"CUSTOMER")) and command_words.size()==1)
+    else if (command_words[0] == "LIST_FLIGHT" and (verify_role(fd, "AIRLINE") or verify_role(fd, "CUSTOMER")) and command_words.size() == 1)
     {
         for (auto &f : flights)
         {
@@ -198,11 +226,102 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
             send(fd, msg.c_str(), msg.size(), 0);
         }
     }
+    else if (command_words[0] == "RESERVE" and command_words.size() >= 3 and verify_role(fd, "CUSTOMER"))
+    {
+
+        string flight_id = command_words[1];
+        Reserve new_reserve;
+        int is_ok = 1;
+
+        for (auto &f : flights)
+        {
+            if (flight_id == f.flight_id)
+            {
+
+                for (int i = 2; i < command_words.size(); i++)
+                {
+
+                    string seat = command_words[i];
+
+                    if (seat[0] >= 'A' and seat[0] <= 'Z' and isNumber(seat.substr(1)))
+                    {
+
+                        for (auto &s : f.seat_map)
+                        {
+                            if (s.column == seat[0] and s.row == stoi(seat.substr(1)))
+                            {
+
+                                if (s.status == "Free")
+                                {
+                                    s.status = "WAIT";
+                                    new_reserve.seats.push_back(seat);
+                                    if (i == command_words.size() - 1)
+                                    {
+                                        new_reserve.flight_id = f.flight_id;
+                                        new_reserve.reservation_id = last_reserve + 1;
+                                        last_reserve++;
+                                        new_reserve.status = "Temporary";
+                                        new_reserve.username = get_username(fd);
+
+                                        reserves.push_back(new_reserve);
+                                        string msg = "RESERVED TEMP " + new_reserve.reservation_id + " EXPIRES_IN 30";
+                                        send(fd, msg.c_str(), msg.size(), 0);
+
+                                        for (auto &s : f.seat_map)
+                                        {
+                                            if (s.status == "WAIT")
+                                            {
+                                                s.status = "Reserve";
+                                            }
+                                        }
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    string msg = "SEAT is Not Free\n";
+                                    send(fd, msg.c_str(), msg.size(), 0);
+                                    for (auto &s : f.seat_map)
+                                    {
+                                        if (s.status == "WAIT")
+                                        {
+                                            s.status = "Free";
+                                        }
+                                    }
+
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        string msg = "Invalid SEAT\n";
+                        send(fd, msg.c_str(), msg.size(), 0);
+                        for (auto &s : f.seat_map)
+                        {
+                            if (s.status == "WAIT")
+                            {
+                                s.status = "Free";
+                            }
+                        }
+                        return;
+                    }
+                }
+                break;
+            }
+        }
+    }
 }
 
 AirLineManagerSystem ::AirLineManagerSystem(int port_)
 {
     port = port_;
+    last_reserve = 0;
     return;
 }
 
