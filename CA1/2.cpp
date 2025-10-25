@@ -15,7 +15,6 @@ int main(int argc, char const *argv[]) {
     char buffer[1024] = {0};
     struct sockaddr_in bc_address;
 
-
     sock = socket(AF_INET, SOCK_DGRAM, 0);
     setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
     setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
@@ -28,8 +27,8 @@ int main(int argc, char const *argv[]) {
 
     while (1) {
         memset(buffer, 0, 1024);
-        read(0, buffer, 1024);
-        int a = sendto(sock, buffer, strlen(buffer), 0,(struct sockaddr *)&bc_address, sizeof(bc_address));
+        recv(sock, buffer, 1024, 0);
+        printf("%s\n", buffer);
     }
 
     return 0;

@@ -36,18 +36,21 @@ int connect_tcp(int port)
 }
 
 int connect_udp(int udp_port)
-{
-    int udp_fd;
-    struct sockaddr_in local_addr;
+{   int sock;
+    int  broadcast = 1, opt = 1;
+    struct sockaddr_in bc_address;
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
+    setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 
-    udp_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    bc_address.sin_family = AF_INET; 
+    bc_address.sin_port = htons(udp_port); 
+    bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
 
-    local_addr.sin_family = AF_INET;
-    local_addr.sin_port = 0;
-    local_addr.sin_addr.s_addr = INADDR_ANY;
+    bind(sock, (struct sockaddr *)&bc_address, sizeof(bc_address));
 
-    bind(udp_fd, (struct sockaddr *)&local_addr, sizeof(local_addr));
-    return udp_fd;
+    return sock;
+
 }
 
 int main()
@@ -65,10 +68,13 @@ int main()
         FD_ZERO(&readfds);
         FD_SET(STDIN, &readfds);
         FD_SET(fd, &readfds);
-
         int max_fd = fd;
-        
-        
+        if (udp_connected && udp_fd > 0)
+        {
+            FD_SET(udp_fd, &readfds);
+            if (udp_fd > max_fd)
+                max_fd = udp_fd;
+        }
 
         if (select(max_fd + 1, &readfds, NULL, NULL, NULL) < 0)
         {
@@ -82,15 +88,32 @@ int main()
             send(fd, buff, strlen(buff), 0);
             memset(buff, 0, 1024);
         }
-  
 
         if (FD_ISSET(fd, &readfds))
-        {     
+        {
             int n = recv(fd, buff, 1024, 0);
             if (n > 0)
             {
                 buff[n] = '\0';
-                print(string(buff));
+                if (string(buff).substr(0, 3) == "UDP")
+                {
+                    udp_connected = true;
+                    print("REGISTERED OK\n");
+                    if (string(buff)[3] == '1')
+                    {
+                        udp_fd = connect_udp(8081);
+                    }
+
+                    else
+                    {
+                        udp_fd = connect_udp(8080);
+                    }
+                }
+                else
+                {
+                    print(string(buff));
+                   
+                }
             }
             else if (n == 0)
             {
