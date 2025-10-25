@@ -67,8 +67,8 @@ class AirLineManagerSystem
 public:
 
   AirLineManagerSystem (int port);
-  void set_up_udp_customer(string message);
-  void set_up_udp_airline(string message);
+  void set_up_udp_customer();
+  void set_up_udp_airline();
   void set_up_tcp();
   void run();
   void handle_command(string s , int fd);
@@ -79,8 +79,7 @@ private:
 
 bool  verify_role(int fd , string role);
 string get_username(int fd);
-// void send_udp_message(int sock, const string &message, int port);
-// void send_udp_message(string type, const string &message);
+void send_udp_message(int sock, const string &message, int port);
 static void  handle_timeout(int sig);
 
 int port;

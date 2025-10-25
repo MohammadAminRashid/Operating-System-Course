@@ -125,9 +125,6 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
                     is_already_exist = true;
                 }
             }
-
-            //  print(to_string(u.fd));
-            //   print(to_string(fd));
             if (!is_already_exist)
             {
                 if (command_words[1] == "AIRLINE" or command_words[1] == "CUSTOMER")
@@ -150,8 +147,7 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
                     }
 
 
-                    // send_udp_message("AIRLINE","BROADCAST NEW_USER "+new_user.username+" "+new_user.role);
-                    set_up_udp_airline("BROADCAST NEW_USER "+new_user.username+" "+new_user.role+"\n");
+                    send_udp_message(socket_airline,"BROADCAST NEW_USER "+new_user.username+" "+new_user.role+"\n",port+1);
                 }
             }
         }
@@ -226,11 +222,9 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
                 flights.push_back(new_flight);
                 string msg = "FLIGHT_ADDED OK\n";
                 send(fd, msg.c_str(), msg.size(), 0);
-                // send_udp_message("CUSTOMER","BROADCAST NEW_FLIGHT "+new_flight.flight_id+" "+
-                //     new_flight.origin +" "+new_flight.destination+" "+new_flight.time);
+                send_udp_message(socket_customer,"BROADCAST NEW_FLIGHT "+new_flight.flight_id+" "+
+                    new_flight.origin +" "+new_flight.destination+" "+new_flight.time+"\n",port);
 
-                set_up_udp_customer("BROADCAST NEW_FLIGHT "+new_flight.flight_id+" "+
-                    new_flight.origin +" "+new_flight.destination+" "+new_flight.time+"\n");
             }
         }
     }
@@ -377,7 +371,7 @@ void AirLineManagerSystem ::set_up_tcp()
     listen(server_fd, 4);
     return;
 }
-void AirLineManagerSystem ::set_up_udp_customer(string message)
+void AirLineManagerSystem ::set_up_udp_customer()
 {
 
     int broadcast = 1, opt = 1;
@@ -391,9 +385,9 @@ void AirLineManagerSystem ::set_up_udp_customer(string message)
     bc_address.sin_port = htons(port);
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     bind(socket_customer, (struct sockaddr *)&bc_address, sizeof(bc_address));
-    sendto(socket_customer, message.c_str(), message.size(), 0,(struct sockaddr *)&bc_address, sizeof(bc_address));
+  
 }
-void AirLineManagerSystem ::set_up_udp_airline(string message)
+void AirLineManagerSystem ::set_up_udp_airline()
 {
     int broadcast = 1, opt = 1;
     struct sockaddr_in bc_address;
@@ -406,45 +400,18 @@ void AirLineManagerSystem ::set_up_udp_airline(string message)
     bc_address.sin_port = htons(port + 1);
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     bind(socket_airline, (struct sockaddr *)&bc_address, sizeof(bc_address));
-    sendto(socket_airline, message.c_str(), message.size(), 0,(struct sockaddr *)&bc_address, sizeof(bc_address));
 }
-// void AirLineManagerSystem::send_udp_message(int sock, const string &message, int port) {
-//     struct sockaddr_in bc_address{};
-//     bc_address.sin_family = AF_INET;
-//     bc_address.sin_port = htons(port);
-//     bc_address.sin_addr.s_addr = inet_addr("192.168.1.255"); 
-//     ssize_t sent_bytes = sendto(sock, message.c_str(), message.size(), 0,
-//                                 (struct sockaddr *)&bc_address, sizeof(bc_address));                         
-//     if (sent_bytes < 0) {
-//         perror("sendto failed");
-//     }
-// }
-// void AirLineManagerSystem::send_udp_message(string type, const string &message) {
-//     int sock;
-//     struct sockaddr_in bc_address{};
-    
-//     if (type == "CUSTOMER") {
-//         sock = socket_customer;
-//         bc_address.sin_family = AF_INET;
-//         bc_address.sin_port = htons(port);            
-//         bc_address.sin_addr.s_addr = inet_addr("192.168.1.255"); 
-//     } else if (type == "AIRLINE") {
-//         sock = socket_airline;
-//         bc_address.sin_family = AF_INET;
-//         bc_address.sin_port = htons(port + 1);          
-//         bc_address.sin_addr.s_addr = inet_addr("192.168.1.255"); 
-//     } else {
-//         print("Invalid type for UDP send\n");
-//         return;
-//     }
-
-//     int sent_bytes = sendto(sock, message.c_str(), message.size(), 0,
-//                             (struct sockaddr *)&bc_address, sizeof(bc_address));
-
-//     if (sent_bytes < 0) {
-//         perror("sendto failed");
-//     }
-// }
+void AirLineManagerSystem::send_udp_message(int sock, const string &message, int port) {
+    struct sockaddr_in bc_address{};
+    bc_address.sin_family = AF_INET;
+    bc_address.sin_port = htons(port);
+    bc_address.sin_addr.s_addr = inet_addr("255.255.255.255"); 
+    ssize_t sent_bytes = sendto(sock, message.c_str(), message.size(), 0,
+                                (struct sockaddr *)&bc_address, sizeof(bc_address));                         
+    if (sent_bytes < 0) {
+        perror("sendto failed");
+    }
+}
 
 
 void AirLineManagerSystem ::run()
@@ -482,9 +449,7 @@ void AirLineManagerSystem ::run()
                     sockaddr_in client_addr;
                     socklen_t addrlen = sizeof(client_addr);
                     int new_socket = accept(server_fd, (sockaddr *)&client_addr, &addrlen);
-                    // addClient(new_socket, type);
-                    // print("Connected" + to_string(new_socket));
-
+               
                     FD_SET(new_socket, &master_set);
                     if (new_socket > max_sd)
                         max_sd = new_socket;
