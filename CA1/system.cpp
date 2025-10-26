@@ -1,7 +1,6 @@
 #include "system.hpp"
 static volatile sig_atomic_t timeout_flag = 0;
 
-
 bool is_number(const string &s)
 {
     if (s.empty() == true)
@@ -11,21 +10,12 @@ bool is_number(const string &s)
     for (char c : s)
     {
         if (isdigit(c) == false)
-        return false;
+            return false;
     }
     return true;
 }
 
-string trim(const string &s)
-{
-    size_t start = s.find_first_not_of(" \t\r\n");
-    if (start == string::npos)
-    {
-        return "";
-    }
-    size_t end = s.find_last_not_of(" \t\r\n");
-    return s.substr(start, end - start + 1);
-}
+
 void AirLineManagerSystem ::set_next_alarm()
 {
     int min_time = __INT_MAX__;
@@ -33,7 +23,7 @@ void AirLineManagerSystem ::set_next_alarm()
     {
         if (r.time_stamp < min_time and r.status == "TEMPORARY")
         {
-            
+
             min_time = r.time_stamp;
         }
     }
@@ -128,6 +118,16 @@ bool AirLineManagerSystem ::verify_role(int fd, string role)
     }
 
     return false;
+}
+string trim(const string &s)
+{
+    size_t start = s.find_first_not_of(" \t\r\n");
+    if (start == string::npos)
+    {
+        return "";
+    }
+    size_t end = s.find_last_not_of(" \t\r\n");
+    return s.substr(start, end - start + 1);
 }
 vector<string> string_splitter(const string &command_line, char splitter)
 {
@@ -582,9 +582,26 @@ void AirLineManagerSystem ::run()
                 {
                     char buffer[1024];
                     int bytes_received = recv(i, buffer, sizeof(buffer) - 1, 0);
-                    buffer[bytes_received] = '\0';
-                    string s = string(buffer);
-                    handle_command(s, i);
+
+                    if (bytes_received <= 0)
+                    {
+
+                        close(i);         
+                        FD_CLR(i, &master_set); 
+                        if (i == max_sd)
+                        {
+                            while (max_sd >= 0 && !FD_ISSET(max_sd, &master_set))
+                            {
+                                --max_sd;
+                            }
+                        }
+                    }
+                    else 
+                    {
+                        buffer[bytes_received] = '\0';
+                        string s = string(buffer);
+                        handle_command(s, i);
+                    }
                 }
             }
         }
