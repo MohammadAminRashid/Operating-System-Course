@@ -1,17 +1,17 @@
 #include "system.hpp"
-void print(string m)
-{
-    write(STDOUT, m.c_str(), m.size());
-}
+static volatile sig_atomic_t timeout_flag = 0;
 
-bool isNumber(const string &s)
+
+bool is_number(const string &s)
 {
-    if (s.empty())
+    if (s.empty() == true)
+    {
         return false;
+    }
     for (char c : s)
     {
-        if (!isdigit(c))
-            return false;
+        if (isdigit(c) == false)
+        return false;
     }
     return true;
 }
@@ -20,17 +20,82 @@ string trim(const string &s)
 {
     size_t start = s.find_first_not_of(" \t\r\n");
     if (start == string::npos)
+    {
         return "";
+    }
     size_t end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
 }
+void AirLineManagerSystem ::set_next_alarm()
+{
+    int min_time = __INT_MAX__;
+    for (auto &r : reserves)
+    {
+        if (r.time_stamp < min_time and r.status == "TEMPORARY")
+        {
+            
+            min_time = r.time_stamp;
+        }
+    }
+    alarm(min_time - time(NULL));
+}
 
-void AirLineManagerSystem ::handle_timeout(int sig)
+void print(string m)
+{
+    write(STDOUT, m.c_str(), m.size());
+}
+void AirLineManagerSystem ::disable_reserve()
+{
+    int min_time = __INT_MAX__;
+    int reserve_id;
+    int index_reserve;
+    int i = 0;
+    for (auto &r : reserves)
+    {
+        if (r.time_stamp < min_time and r.status == "TEMPORARY")
+        {
+
+            min_time = r.time_stamp;
+            reserve_id = r.reservation_id;
+            index_reserve = i;
+        }
+        i += 1;
+    }
+    for (auto &r : reserves)
+    {
+        if (reserve_id == r.reservation_id)
+        {
+            for (auto &f : flights)
+            {
+                if (r.flight_id == f.flight_id)
+                {
+                    for (auto &seat : r.seats)
+                    {
+
+                        for (auto &s : f.seat_map)
+                        {
+
+                            if (s.column == seat[0] and s.row == stoi(seat.substr(1)))
+                            {
+                                s.status = "Free";
+                            }
+                        }
+                    }
+                }
+            }
+            reserves.erase(reserves.begin() + index_reserve);
+            number_of_reserves--;
+            break;
+        }
+    }
+}
+
+void AirLineManagerSystem ::timeout(int sig)
 {
     if (sig == SIGALRM)
     {
-
-        print("handle timeout called!!!!!");
+        timeout_flag = 1;
+        return;
     }
 }
 
@@ -98,16 +163,7 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
     vector<string> command_words;
 
     command_words = string_splitter(command_line, ' ');
-    // print(command_words[0]);
-    // print(command_words[1]);
-    // print(command_words[2]);
-    // print(command_words[3]);
-    //  print(to_string(command_words.size()));
-    // cout << "command_words size = " << command_words.size() << endl;
-    // for (int i = 0; i < command_words.size(); i++)
-    //     cout << i << ": " << command_words[i] << endl;
-
-    if (command_words[0] == REGISTER)
+    if (command_words[0] == "REGISTER")
     {
 
         if (command_words.size() == 4)
@@ -146,8 +202,7 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
                         send(fd, msg.c_str(), msg.size(), 0);
                     }
 
-
-                    send_udp_message(socket_airline,"BROADCAST NEW_USER "+new_user.username+" "+new_user.role+"\n",port+1);
+                    send_udp_message(socket_airline, "BROADCAST NEW_USER " + new_user.username + " " + new_user.role + "\n", port + 1);
                 }
             }
         }
@@ -222,9 +277,7 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
                 flights.push_back(new_flight);
                 string msg = "FLIGHT_ADDED OK\n";
                 send(fd, msg.c_str(), msg.size(), 0);
-                send_udp_message(socket_customer,"BROADCAST NEW_FLIGHT "+new_flight.flight_id+" "+
-                    new_flight.origin +" "+new_flight.destination+" "+new_flight.time+"\n",port);
-
+                send_udp_message(socket_customer, "BROADCAST NEW_FLIGHT " + new_flight.flight_id + " " + new_flight.origin + " " + new_flight.destination + " " + new_flight.time + "\n", port);
             }
         }
     }
@@ -265,7 +318,7 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
 
                     string seat = command_words[i];
 
-                    if (seat[0] >= 'A' and seat[0] <= 'Z' and isNumber(seat.substr(1)))
+                    if (seat[0] >= 'A' and seat[0] <= 'Z' and is_number(seat.substr(1)))
                     {
 
                         for (auto &s : f.seat_map)
@@ -280,15 +333,15 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
                                     if (i == command_words.size() - 1)
                                     {
                                         new_reserve.flight_id = f.flight_id;
-                                        new_reserve.reservation_id = last_reserve + 1;
-                                        last_reserve++;
-                                        new_reserve.status = "Temporary";
+                                        new_reserve.reservation_id = last_reserve_id + 1;
+                                        last_reserve_id++;
+                                        number_of_reserves++;
+                                        new_reserve.status = "TEMPORARY";
                                         new_reserve.username = get_username(fd);
-                                        new_reserve.time_stamp = 10;
-                                        if (new_reserve.reservation_id == 1)
+                                        new_reserve.time_stamp = time(NULL) + 30;
+                                        if (number_of_reserves == 1)
                                         {
-
-                                            alarm(new_reserve.time_stamp);
+                                            alarm(new_reserve.time_stamp - time(NULL));
                                         }
 
                                         reserves.push_back(new_reserve);
@@ -344,13 +397,76 @@ void AirLineManagerSystem ::handle_command(string command_line, int fd)
             }
         }
     }
+    else if (command_words[0] == "CONFIRM")
+    {
+        if (command_words.size() == 2)
+        {
+            int reserve_id = stoi(command_words[1]);
+
+            for (auto &r : reserves)
+            {
+
+                if (r.reservation_id == reserve_id)
+                {
+                    string msg = "CONFIRMATION OK\n";
+                    send(fd, msg.c_str(), msg.size(), 0);
+                    r.status = "CONFIRMED";
+                    number_of_reserves--;
+                    return;
+                }
+            }
+
+            string msg = "ERROR ReservationExpired\n";
+            send(fd, msg.c_str(), msg.size(), 0);
+        }
+        return;
+    }
+    else if (command_words[0] == "CANCEL")
+    {
+        if (command_words.size() == 2)
+        {
+            int reserve_id = stoi(command_words[1]);
+            int i = 0;
+            for (auto &r : reserves)
+            {
+                if (reserve_id == r.reservation_id and r.status == "TEMPORARY")
+                {
+                    for (auto &f : flights)
+                    {
+                        if (r.flight_id == f.flight_id)
+                        {
+                            for (auto &seat : r.seats)
+                            {
+
+                                for (auto &s : f.seat_map)
+                                {
+
+                                    if (s.column == seat[0] and s.row == stoi(seat.substr(1)))
+                                    {
+                                        s.status = "Free";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    string msg = "CANCELLED OK\n";
+                    send(fd, msg.c_str(), msg.size(), 0);
+                    reserves.erase(reserves.begin() + i);
+                    number_of_reserves--;
+                    return;
+                }
+                i += 1;
+            }
+        }
+    }
 }
 
 AirLineManagerSystem ::AirLineManagerSystem(int port_)
 {
     port = port_;
-    last_reserve = 0;
-    signal(SIGALRM, handle_timeout);
+    last_reserve_id = 0;
+    number_of_reserves = 0;
+    signal(SIGALRM, timeout);
 
     return;
 }
@@ -385,7 +501,6 @@ void AirLineManagerSystem ::set_up_udp_customer()
     bc_address.sin_port = htons(port);
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     bind(socket_customer, (struct sockaddr *)&bc_address, sizeof(bc_address));
-  
 }
 void AirLineManagerSystem ::set_up_udp_airline()
 {
@@ -401,18 +516,19 @@ void AirLineManagerSystem ::set_up_udp_airline()
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     bind(socket_airline, (struct sockaddr *)&bc_address, sizeof(bc_address));
 }
-void AirLineManagerSystem::send_udp_message(int sock, const string &message, int port) {
+void AirLineManagerSystem::send_udp_message(int sock, const string &message, int port)
+{
     struct sockaddr_in bc_address{};
     bc_address.sin_family = AF_INET;
     bc_address.sin_port = htons(port);
-    bc_address.sin_addr.s_addr = inet_addr("255.255.255.255"); 
+    bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     ssize_t sent_bytes = sendto(sock, message.c_str(), message.size(), 0,
-                                (struct sockaddr *)&bc_address, sizeof(bc_address));                         
-    if (sent_bytes < 0) {
+                                (struct sockaddr *)&bc_address, sizeof(bc_address));
+    if (sent_bytes < 0)
+    {
         perror("sendto failed");
     }
 }
-
 
 void AirLineManagerSystem ::run()
 {
@@ -424,13 +540,21 @@ void AirLineManagerSystem ::run()
 
     while (true)
     {
+        if (timeout_flag == 1)
+        {
+            timeout_flag = 0;
+            disable_reserve();
+            if (number_of_reserves >= 1)
+            {
+                set_next_alarm();
+            }
+        }
         working_set = master_set;
         int ret = select(max_sd + 1, &working_set, nullptr, nullptr, nullptr);
         if (ret < 0)
         {
             if (errno == EINTR)
             {
-
                 continue;
             }
             else
@@ -449,7 +573,7 @@ void AirLineManagerSystem ::run()
                     sockaddr_in client_addr;
                     socklen_t addrlen = sizeof(client_addr);
                     int new_socket = accept(server_fd, (sockaddr *)&client_addr, &addrlen);
-               
+
                     FD_SET(new_socket, &master_set);
                     if (new_socket > max_sd)
                         max_sd = new_socket;

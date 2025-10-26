@@ -2,11 +2,12 @@
 #include <string>
 #include <vector>
 #include "system.hpp"
+#define PORT 8080
 
 int main(){
 
 
-    AirLineManagerSystem system(8080);
+    AirLineManagerSystem system(PORT);
 
     system.set_up_tcp();
     system.set_up_udp_customer();

@@ -1,16 +1,15 @@
 #ifndef SYSTEM_HPP
 #define SYSTEM_HPP
 
-
 #define REGISTER "REGISTER"
 #define STDIN 0
 #define STDOUT 1
 
-#include <iostream>
+
 
 #include <string>
 #include <vector>
-
+#include <ctime>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -22,32 +21,31 @@
 #include <sys/time.h>
 #include <signal.h>
 
+using namespace std;
 
-using namespace std; 
-
-
-
-struct User {
-    int fd=0;
-    string role="";
-    string username="";
-    string password="";
+struct User
+{
+  int fd = 0;
+  string role = "";
+  string username = "";
+  string password = "";
 };
-struct Seat{
+struct Seat
+{
 
-string status;
-char column;
-int row;
+  string status;
+  char column;
+  int row;
 };
 
-struct Flight{
-string flight_id;
-string origin;
-string destination;
-string time;
-int capacity;
-vector<Seat> seat_map;
-
+struct Flight
+{
+  string flight_id;
+  string origin;
+  string destination;
+  string time;
+  int capacity;
+  vector<Seat> seat_map;
 };
 struct Reserve
 {
@@ -59,39 +57,38 @@ struct Reserve
   int time_stamp;
 };
 
-
-
-class AirLineManagerSystem 
+class AirLineManagerSystem
 {
 
 public:
-
-  AirLineManagerSystem (int port);
+  AirLineManagerSystem(int port);
   void set_up_udp_customer();
   void set_up_udp_airline();
   void set_up_tcp();
   void run();
-  void handle_command(string s , int fd);
-  
+  void handle_command(string s, int fd);
 
 private:
+  void disable_reserve();
+  bool verify_role(int fd, string role);
+  string get_username(int fd);
+  void send_udp_message(int sock, const string &message, int port);
+  static void timeout(int sig);
+  void set_next_alarm();
 
 
-bool  verify_role(int fd , string role);
-string get_username(int fd);
-void send_udp_message(int sock, const string &message, int port);
-static void  handle_timeout(int sig);
-
-int port;
-int server_fd;
-int socket_customer;
-int socket_airline;
-int last_reserve;
-vector<User> users;
-vector<Flight>flights;
-vector<Reserve> reserves;
 
 
+
+  int port;
+  int server_fd;
+  int socket_customer;
+  int socket_airline;
+  int last_reserve_id;
+  int number_of_reserves;
+  vector<User> users;
+  vector<Flight> flights;
+  vector<Reserve> reserves;
 };
 
 #endif
